@@ -7,8 +7,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PropertyLocation extends Model
 {
-    protected $connection = 'pgsql_locations';
-
     protected $fillable = [
         'user_id',
         'user_email',
