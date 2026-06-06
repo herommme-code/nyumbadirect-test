@@ -183,6 +183,36 @@ class SellerPropertyController extends Controller
         ]);
     }
 
+    public function destroy(Request $request, string $listingId): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $user = $this->userFor($validated['email']);
+        if (! $user) {
+            return response()->json(['message' => 'User not found.'], 404);
+        }
+
+        $property = $user->sellerProperties()
+            ->where('listing_id', $listingId)
+            ->first();
+
+        if (! $property) {
+            return response()->json(['message' => 'Property not found.'], 404);
+        }
+
+        $property->delete();
+
+        PropertyLocation::where('user_id', $user->id)
+            ->where('listing_id', $listingId)
+            ->delete();
+
+        Storage::disk('public')->deleteDirectory('seller-properties/'.$listingId);
+
+        return response()->json(['message' => 'Property deleted.']);
+    }
+
     public function published(): JsonResponse
     {
         $properties = SellerProperty::query()

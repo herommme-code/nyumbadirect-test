@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('property_locations', function (Blueprint $table) {
+        Schema::connection('pgsql_locations')->create('property_locations', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('user_id')->index();
             $table->string('user_email')->index();
@@ -16,8 +16,8 @@ return new class extends Migration
             $table->decimal('latitude', 10, 8);
             $table->decimal('longitude', 11, 8);
             $table->string('source')->default('gps');
-            $table->timestamp('registered_at')->nullable();
-            $table->timestamps();
+            $table->timestampTz('registered_at')->nullable();
+            $table->timestampsTz();
 
             $table->unique(['user_id', 'listing_id']);
             $table->index(['latitude', 'longitude']);
@@ -26,6 +26,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('property_locations');
+        Schema::connection('pgsql_locations')->dropIfExists('property_locations');
     }
 };

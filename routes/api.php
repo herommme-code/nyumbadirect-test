@@ -43,6 +43,7 @@ Route::prefix('seller/properties')->group(function () {
     Route::put('/sync', [SellerPropertyController::class, 'sync']);
     Route::put('/{listingId}/location', [SellerPropertyController::class, 'updateLocation']);
     Route::post('/{listingId}/images', [SellerPropertyController::class, 'uploadImages']);
+    Route::delete('/{listingId}', [SellerPropertyController::class, 'destroy']);
 });
 
 Route::get('/properties', [SellerPropertyController::class, 'published']);
