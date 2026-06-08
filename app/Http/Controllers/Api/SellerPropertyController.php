@@ -377,7 +377,7 @@ class SellerPropertyController extends Controller
         $parsedUrl = parse_url($trimmedUrl);
         $appHost = parse_url($appUrl, PHP_URL_HOST);
         $path = $parsedUrl['path'] ?? '';
-        if (str_contains($path, '/api/profile-photos/') || str_contains($path, '/storage/profile-photos/') || str_contains($path, '/api/storage/profile-photos/')) {
+        if (str_contains($path, '/api/profile-photos/') || str_contains($path, '/storage/profile_photos/') || str_contains($path, '/storage/profile-photos/') || str_contains($path, '/api/storage/profile_photos/') || str_contains($path, '/api/storage/profile-photos/')) {
             return $appUrl.$this->normalizedProfilePhotoPath($path);
         }
 
@@ -393,6 +393,10 @@ class SellerPropertyController extends Controller
         $normalizedPath = str_starts_with($path, '/api/storage/')
             ? substr($path, 4)
             : $path;
+
+        if (str_starts_with($normalizedPath, '/storage/profile_photos/')) {
+            return '/api/profile-photos/'.basename($normalizedPath);
+        }
 
         if (str_starts_with($normalizedPath, '/storage/profile-photos/')) {
             return '/api/profile-photos/'.basename($normalizedPath);

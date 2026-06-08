@@ -121,6 +121,7 @@ class AuthController extends Controller
         ];
 
         if ($profilePhotoUrl === null) {
+            $this->deleteStoredProfilePhoto($user);
             $updates['profile_photo_filename'] = null;
             $updates['profile_photo_mime'] = null;
             $updates['profile_photo_data'] = null;
@@ -150,7 +151,9 @@ class AuthController extends Controller
         }
 
         $photo = $request->file('photo');
-        $path = $photo->store('profile-photos', 'public');
+        $this->deleteStoredProfilePhoto($user);
+
+        $path = $photo->store('profile_photos', 'public');
         $filename = basename($path);
 
         $user->update([
@@ -162,6 +165,34 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Profile photo uploaded successfully.',
+            'user' => $this->userPayload($user->refresh()),
+        ]);
+    }
+
+    public function removeProfilePhoto(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $user = User::where('email', strtolower($validated['email']))->first();
+
+        if (! $user) {
+            return response()->json([
+                'message' => 'User not found.',
+            ], 404);
+        }
+
+        $this->deleteStoredProfilePhoto($user);
+        $user->update([
+            'profile_photo_url' => null,
+            'profile_photo_filename' => null,
+            'profile_photo_mime' => null,
+            'profile_photo_data' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'Profile photo removed successfully.',
             'user' => $this->userPayload($user->refresh()),
         ]);
     }
@@ -215,16 +246,18 @@ class AuthController extends Controller
     public function profilePhoto(string $filename)
     {
         $safeFilename = basename($filename);
-        $path = 'profile-photos/'.$safeFilename;
 
         if ($safeFilename === '') {
             abort(404);
         }
 
-        if (Storage::disk('public')->exists($path)) {
-            return response()->file(Storage::disk('public')->path($path), [
-                'Cache-Control' => 'public, max-age=604800',
-            ]);
+        foreach (['profile_photos', 'profile-photos'] as $directory) {
+            $path = $directory.'/'.$safeFilename;
+            if (Storage::disk('public')->exists($path)) {
+                return response()->file(Storage::disk('public')->path($path), [
+                    'Cache-Control' => 'public, max-age=604800',
+                ]);
+            }
         }
 
         $user = User::where('profile_photo_filename', $safeFilename)->first();
@@ -301,7 +334,7 @@ class AuthController extends Controller
         $parsedUrl = parse_url($trimmedUrl);
         $appHost = parse_url($appUrl, PHP_URL_HOST);
         $path = $parsedUrl['path'] ?? '';
-        if (str_contains($path, '/api/profile-photos/') || str_contains($path, '/storage/profile-photos/') || str_contains($path, '/api/storage/profile-photos/')) {
+        if (str_contains($path, '/api/profile-photos/') || str_contains($path, '/storage/profile_photos/') || str_contains($path, '/storage/profile-photos/') || str_contains($path, '/api/storage/profile_photos/') || str_contains($path, '/api/storage/profile-photos/')) {
             return $appUrl.$this->normalizedProfilePhotoPath($path);
         }
 
@@ -318,6 +351,10 @@ class AuthController extends Controller
             ? substr($path, 4)
             : $path;
 
+        if (str_starts_with($normalizedPath, '/storage/profile_photos/')) {
+            return '/api/profile-photos/'.basename($normalizedPath);
+        }
+
         if (str_starts_with($normalizedPath, '/storage/profile-photos/')) {
             return '/api/profile-photos/'.basename($normalizedPath);
         }
@@ -332,6 +369,37 @@ class AuthController extends Controller
     private function profilePhotoApiUrl(string $filename): string
     {
         return $this->publicAppUrl().'/api/profile-photos/'.$filename;
+    }
+
+    private function deleteStoredProfilePhoto(User $user): void
+    {
+        $filenames = array_filter([
+            $user->profile_photo_filename,
+            $this->profilePhotoFilenameFromUrl($user->profile_photo_url),
+        ]);
+
+        foreach (array_unique($filenames) as $filename) {
+            foreach (['profile_photos', 'profile-photos'] as $directory) {
+                Storage::disk('public')->delete($directory.'/'.basename($filename));
+            }
+        }
+    }
+
+    private function profilePhotoFilenameFromUrl(?string $url): ?string
+    {
+        if ($url === null || trim($url) === '') {
+            return null;
+        }
+
+        $path = parse_url(trim($url), PHP_URL_PATH) ?: trim($url);
+        if (
+            str_contains($path, '/profile-photos/') ||
+            str_contains($path, '/profile_photos/')
+        ) {
+            return basename($path);
+        }
+
+        return null;
     }
 
     private function publicAppUrl(): string

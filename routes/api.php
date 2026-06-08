@@ -28,6 +28,7 @@ Route::prefix('auth')->group(function () {
     Route::post('/profile', [AuthController::class, 'profile']);
     Route::put('/profile', [AuthController::class, 'updateProfile']);
     Route::post('/profile/photo', [AuthController::class, 'uploadProfilePhoto']);
+    Route::delete('/profile/photo', [AuthController::class, 'removeProfilePhoto']);
     Route::post('/presence', [AuthController::class, 'presence']);
     Route::get('/users', [AuthController::class, 'users']);
 });
