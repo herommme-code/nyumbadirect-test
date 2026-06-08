@@ -32,6 +32,9 @@ Route::prefix('auth')->group(function () {
     Route::get('/users', [AuthController::class, 'users']);
 });
 
+Route::get('/profile-photos/{filename}', [AuthController::class, 'profilePhoto'])
+    ->where('filename', '[A-Za-z0-9._-]+');
+
 Route::prefix('conversations')->group(function () {
     Route::get('/', [ConversationController::class, 'index']);
     Route::post('/messages', [ConversationController::class, 'storeMessage']);

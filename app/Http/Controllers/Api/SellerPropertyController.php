@@ -366,29 +366,35 @@ class SellerPropertyController extends Controller
         $trimmedUrl = trim($url);
         $appUrl = rtrim(config('app.url'), '/');
         if (str_starts_with($trimmedUrl, '/')) {
-            return $appUrl.$this->normalizedStoragePath($trimmedUrl);
+            return $appUrl.$this->normalizedProfilePhotoPath($trimmedUrl);
         }
 
         if (preg_match('/^https?:\/\/(127\.0\.0\.1|localhost|10\.0\.2\.2)(:\d+)?(\/.*)?$/i', $trimmedUrl, $matches)) {
             $path = $matches[3] ?? '';
-            return $appUrl.$this->normalizedStoragePath($path);
+            return $appUrl.$this->normalizedProfilePhotoPath($path);
         }
 
         $parsedUrl = parse_url($trimmedUrl);
         $appHost = parse_url($appUrl, PHP_URL_HOST);
         $path = $parsedUrl['path'] ?? '';
-        if (($parsedUrl['host'] ?? null) === $appHost && str_starts_with($path, '/api/storage/')) {
-            return $appUrl.$this->normalizedStoragePath($path);
+        if (($parsedUrl['host'] ?? null) === $appHost) {
+            return $appUrl.$this->normalizedProfilePhotoPath($path);
         }
 
         return $trimmedUrl;
     }
 
-    private function normalizedStoragePath(string $path): string
+    private function normalizedProfilePhotoPath(string $path): string
     {
-        return str_starts_with($path, '/api/storage/')
+        $normalizedPath = str_starts_with($path, '/api/storage/')
             ? substr($path, 4)
             : $path;
+
+        if (str_starts_with($normalizedPath, '/storage/profile-photos/')) {
+            return '/api/profile-photos/'.basename($normalizedPath);
+        }
+
+        return $normalizedPath;
     }
 }
 

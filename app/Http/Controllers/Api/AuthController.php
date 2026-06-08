@@ -198,6 +198,20 @@ class AuthController extends Controller
         ]);
     }
 
+    public function profilePhoto(string $filename)
+    {
+        $safeFilename = basename($filename);
+        $path = 'profile-photos/'.$safeFilename;
+
+        if ($safeFilename === '' || ! Storage::disk('public')->exists($path)) {
+            abort(404);
+        }
+
+        return response()->file(Storage::disk('public')->path($path), [
+            'Cache-Control' => 'public, max-age=604800',
+        ]);
+    }
+
     public function userPayload(User $user): array
     {
         return [
@@ -217,7 +231,7 @@ class AuthController extends Controller
 
     private function publicStorageUrl(Request $request, string $path): string
     {
-        return rtrim(config('app.url'), '/').Storage::url($path);
+        return $this->profilePhotoApiUrl(basename($path));
     }
 
     private function profilePhotoUrlForUpdate(?string $nextUrl, ?string $currentUrl): ?string
@@ -245,29 +259,40 @@ class AuthController extends Controller
         $trimmedUrl = trim($url);
         $appUrl = rtrim(config('app.url'), '/');
         if (str_starts_with($trimmedUrl, '/')) {
-            return $appUrl.$this->normalizedStoragePath($trimmedUrl);
+            return $appUrl.$this->normalizedProfilePhotoPath($trimmedUrl);
         }
 
         if (preg_match('/^https?:\/\/(127\.0\.0\.1|localhost|10\.0\.2\.2)(:\d+)?(\/.*)?$/i', $trimmedUrl, $matches)) {
             $path = $matches[3] ?? '';
-            return $appUrl.$this->normalizedStoragePath($path);
+            return $appUrl.$this->normalizedProfilePhotoPath($path);
         }
 
         $parsedUrl = parse_url($trimmedUrl);
         $appHost = parse_url($appUrl, PHP_URL_HOST);
         $path = $parsedUrl['path'] ?? '';
-        if (($parsedUrl['host'] ?? null) === $appHost && str_starts_with($path, '/api/storage/')) {
-            return $appUrl.$this->normalizedStoragePath($path);
+        if (($parsedUrl['host'] ?? null) === $appHost) {
+            return $appUrl.$this->normalizedProfilePhotoPath($path);
         }
 
         return $trimmedUrl;
     }
 
-    private function normalizedStoragePath(string $path): string
+    private function normalizedProfilePhotoPath(string $path): string
     {
-        return str_starts_with($path, '/api/storage/')
+        $normalizedPath = str_starts_with($path, '/api/storage/')
             ? substr($path, 4)
             : $path;
+
+        if (str_starts_with($normalizedPath, '/storage/profile-photos/')) {
+            return '/api/profile-photos/'.basename($normalizedPath);
+        }
+
+        return $normalizedPath;
+    }
+
+    private function profilePhotoApiUrl(string $filename): string
+    {
+        return rtrim(config('app.url'), '/').'/api/profile-photos/'.$filename;
     }
 
     private function markUserOnline(User $user): void
