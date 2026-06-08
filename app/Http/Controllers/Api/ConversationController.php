@@ -291,7 +291,7 @@ class ConversationController extends Controller
         }
 
         $trimmedUrl = trim($url);
-        $appUrl = rtrim(config('app.url'), '/');
+        $appUrl = $this->publicAppUrl();
         if (str_starts_with($trimmedUrl, '/')) {
             return $appUrl.$this->normalizedProfilePhotoPath($trimmedUrl);
         }
@@ -330,6 +330,18 @@ class ConversationController extends Controller
         }
 
         return $normalizedPath;
+    }
+
+    private function publicAppUrl(): string
+    {
+        $appUrl = rtrim(config('app.url'), '/');
+        $host = parse_url($appUrl, PHP_URL_HOST);
+
+        if ($host === null || filter_var($host, FILTER_VALIDATE_IP) || str_contains($host, 'localhost')) {
+            return 'https://api.nyumbadirectonline.co.tz';
+        }
+
+        return $appUrl;
     }
 }
 

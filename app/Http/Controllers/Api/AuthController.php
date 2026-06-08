@@ -288,7 +288,7 @@ class AuthController extends Controller
         }
 
         $trimmedUrl = trim($url);
-        $appUrl = rtrim(config('app.url'), '/');
+        $appUrl = $this->publicAppUrl();
         if (str_starts_with($trimmedUrl, '/')) {
             return $appUrl.$this->normalizedProfilePhotoPath($trimmedUrl);
         }
@@ -331,7 +331,19 @@ class AuthController extends Controller
 
     private function profilePhotoApiUrl(string $filename): string
     {
-        return rtrim(config('app.url'), '/').'/api/profile-photos/'.$filename;
+        return $this->publicAppUrl().'/api/profile-photos/'.$filename;
+    }
+
+    private function publicAppUrl(): string
+    {
+        $appUrl = rtrim(config('app.url'), '/');
+        $host = parse_url($appUrl, PHP_URL_HOST);
+
+        if ($host === null || filter_var($host, FILTER_VALIDATE_IP) || str_contains($host, 'localhost')) {
+            return 'https://api.nyumbadirectonline.co.tz';
+        }
+
+        return $appUrl;
     }
 
     private function markUserOnline(User $user): void
