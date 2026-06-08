@@ -322,15 +322,15 @@ class ConversationController extends Controller
             : $path;
 
         if (str_starts_with($normalizedPath, '/storage/profile_photos/')) {
-            return '/api/profile-photos/'.basename($normalizedPath);
+            return '/storage/profile-photos/'.basename($normalizedPath);
         }
 
         if (str_starts_with($normalizedPath, '/storage/profile-photos/')) {
-            return '/api/profile-photos/'.basename($normalizedPath);
+            return '/storage/profile-photos/'.basename($normalizedPath);
         }
 
         if (str_starts_with($normalizedPath, '/api/profile-photos/')) {
-            return '/api/profile-photos/'.basename($normalizedPath);
+            return '/storage/profile-photos/'.basename($normalizedPath);
         }
 
         return $normalizedPath;

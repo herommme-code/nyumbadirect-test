@@ -153,12 +153,11 @@ class AuthController extends Controller
         $photo = $request->file('photo');
         $this->deleteStoredProfilePhoto($user);
 
-        $path = $photo->store('profile_photos', 'public');
-        $filename = basename($path);
+        $path = $photo->store('profile-photos', 'public');
 
         $user->update([
-            'profile_photo_url' => $this->profilePhotoApiUrl($filename),
-            'profile_photo_filename' => $filename,
+            'profile_photo_url' => $this->publicStorageUrl($request, $path),
+            'profile_photo_filename' => basename($path),
             'profile_photo_mime' => $photo->getMimeType() ?: 'image/jpeg',
             'profile_photo_data' => base64_encode(file_get_contents($photo->getRealPath())),
         ]);
@@ -295,7 +294,7 @@ class AuthController extends Controller
 
     private function publicStorageUrl(Request $request, string $path): string
     {
-        return $this->profilePhotoApiUrl(basename($path));
+        return $this->publicAppUrl().Storage::url($path);
     }
 
     private function profilePhotoUrlForUpdate(?string $nextUrl, ?string $currentUrl): ?string
@@ -352,23 +351,18 @@ class AuthController extends Controller
             : $path;
 
         if (str_starts_with($normalizedPath, '/storage/profile_photos/')) {
-            return '/api/profile-photos/'.basename($normalizedPath);
+            return '/storage/profile-photos/'.basename($normalizedPath);
         }
 
         if (str_starts_with($normalizedPath, '/storage/profile-photos/')) {
-            return '/api/profile-photos/'.basename($normalizedPath);
+            return '/storage/profile-photos/'.basename($normalizedPath);
         }
 
         if (str_starts_with($normalizedPath, '/api/profile-photos/')) {
-            return '/api/profile-photos/'.basename($normalizedPath);
+            return '/storage/profile-photos/'.basename($normalizedPath);
         }
 
         return $normalizedPath;
-    }
-
-    private function profilePhotoApiUrl(string $filename): string
-    {
-        return $this->publicAppUrl().'/api/profile-photos/'.$filename;
     }
 
     private function deleteStoredProfilePhoto(User $user): void
