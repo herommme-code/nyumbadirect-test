@@ -243,12 +243,31 @@ class AuthController extends Controller
         }
 
         $trimmedUrl = trim($url);
+        $appUrl = rtrim(config('app.url'), '/');
+        if (str_starts_with($trimmedUrl, '/')) {
+            return $appUrl.$this->normalizedStoragePath($trimmedUrl);
+        }
+
         if (preg_match('/^https?:\/\/(127\.0\.0\.1|localhost|10\.0\.2\.2)(:\d+)?(\/.*)?$/i', $trimmedUrl, $matches)) {
             $path = $matches[3] ?? '';
-            return rtrim(config('app.url'), '/').$path;
+            return $appUrl.$this->normalizedStoragePath($path);
+        }
+
+        $parsedUrl = parse_url($trimmedUrl);
+        $appHost = parse_url($appUrl, PHP_URL_HOST);
+        $path = $parsedUrl['path'] ?? '';
+        if (($parsedUrl['host'] ?? null) === $appHost && str_starts_with($path, '/api/storage/')) {
+            return $appUrl.$this->normalizedStoragePath($path);
         }
 
         return $trimmedUrl;
+    }
+
+    private function normalizedStoragePath(string $path): string
+    {
+        return str_starts_with($path, '/api/storage/')
+            ? substr($path, 4)
+            : $path;
     }
 
     private function markUserOnline(User $user): void
