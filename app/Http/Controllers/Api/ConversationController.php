@@ -18,6 +18,7 @@ class ConversationController extends Controller
         if (! $user) {
             return response()->json(['message' => 'User not found.'], 404);
         }
+        $this->markUserOnline($user);
 
         $conversations = Conversation::query()
             ->where(function ($query) use ($user) {
@@ -56,6 +57,7 @@ class ConversationController extends Controller
         if (! $sender) {
             return response()->json(['message' => 'User not found.'], 404);
         }
+        $this->markUserOnline($sender);
 
         $recipient = null;
         if (! empty($validated['recipient_email'])) {
@@ -142,7 +144,12 @@ class ConversationController extends Controller
             'email' => ['required', 'email', 'max:255'],
         ]);
 
-        return User::where('email', strtolower($validated['email']))->first();
+        $user = User::where('email', strtolower($validated['email']))->first();
+        if ($user) {
+            $this->markUserOnline($user);
+        }
+
+        return $user;
     }
 
     private function findOrCreateDirectConversation(
@@ -256,8 +263,40 @@ class ConversationController extends Controller
             'whatsapp_number' => $user->whatsapp_number,
             'location' => $user->location,
             'bio' => $user->bio,
-            'profile_photo_url' => $user->profile_photo_url,
+            'profile_photo_url' => $this->normalizedProfilePhotoUrl($user->profile_photo_url),
+            'is_online' => $this->isUserOnline($user),
+            'last_seen_at' => optional($user->last_seen_at)->toIso8601String(),
         ];
+    }
+
+    private function markUserOnline(User $user): void
+    {
+        $user->forceFill([
+            'is_online' => true,
+            'last_seen_at' => now(),
+        ])->save();
+    }
+
+    private function isUserOnline(User $user): bool
+    {
+        return (bool) $user->is_online &&
+            $user->last_seen_at !== null &&
+            $user->last_seen_at->greaterThan(now()->subMinutes(2));
+    }
+
+    private function normalizedProfilePhotoUrl(?string $url): ?string
+    {
+        if ($url === null || trim($url) === '') {
+            return null;
+        }
+
+        $trimmedUrl = trim($url);
+        if (preg_match('/^https?:\/\/(127\.0\.0\.1|localhost|10\.0\.2\.2)(:\d+)?(\/.*)?$/i', $trimmedUrl, $matches)) {
+            $path = $matches[3] ?? '';
+            return rtrim(config('app.url'), '/').$path;
+        }
+
+        return $trimmedUrl;
     }
 }
 

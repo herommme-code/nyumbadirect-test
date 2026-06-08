@@ -28,6 +28,8 @@ class User extends Authenticatable
         'location',
         'bio',
         'profile_photo_url',
+        'is_online',
+        'last_seen_at',
     ];
 
     public const UPDATED_AT = null;
@@ -50,6 +52,8 @@ class User extends Authenticatable
     {
         return [
             'password' => 'hashed',
+            'is_online' => 'boolean',
+            'last_seen_at' => 'datetime',
         ];
     }
 

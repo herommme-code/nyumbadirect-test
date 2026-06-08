@@ -57,6 +57,8 @@ class AuthController extends Controller
             ], 401);
         }
 
+        $this->markUserOnline($user);
+
         return response()->json([
             'message' => 'Logged in successfully.',
             'user' => $this->userPayload($user),
@@ -76,6 +78,8 @@ class AuthController extends Controller
                 'message' => 'User not found.',
             ], 404);
         }
+
+        $this->markUserOnline($user);
 
         return response()->json([
             'user' => $this->userPayload($user),
@@ -155,6 +159,12 @@ class AuthController extends Controller
         ]);
 
         $currentEmail = strtolower($validated['email'] ?? '');
+        if ($currentEmail !== '') {
+            $currentUser = User::where('email', $currentEmail)->first();
+            if ($currentUser) {
+                $this->markUserOnline($currentUser);
+            }
+        }
         $users = User::query()
             ->when($currentEmail !== '', fn ($query) => $query->where('email', '!=', $currentEmail))
             ->orderBy('name')
@@ -163,6 +173,29 @@ class AuthController extends Controller
             ->values();
 
         return response()->json(['users' => $users]);
+    }
+
+    public function presence(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+            'online' => ['required', 'boolean'],
+        ]);
+
+        $user = User::where('email', strtolower($validated['email']))->first();
+
+        if (! $user) {
+            return response()->json(['message' => 'User not found.'], 404);
+        }
+
+        $validated['online']
+            ? $this->markUserOnline($user)
+            : $this->markUserOffline($user);
+
+        return response()->json([
+            'message' => $validated['online'] ? 'User is online.' : 'User is offline.',
+            'user' => $this->userPayload($user->refresh()),
+        ]);
     }
 
     public function userPayload(User $user): array
@@ -176,13 +209,15 @@ class AuthController extends Controller
             'location' => $user->location,
             'bio' => $user->bio,
             'profile_photo_url' => $this->normalizedProfilePhotoUrl($user->profile_photo_url),
+            'is_online' => $this->isUserOnline($user),
+            'last_seen_at' => optional($user->last_seen_at)->toIso8601String(),
             'created_at' => $user->created_at,
         ];
     }
 
     private function publicStorageUrl(Request $request, string $path): string
     {
-        return rtrim($request->getSchemeAndHttpHost(), '/').Storage::url($path);
+        return rtrim(config('app.url'), '/').Storage::url($path);
     }
 
     private function profilePhotoUrlForUpdate(?string $nextUrl, ?string $currentUrl): ?string
@@ -214,6 +249,29 @@ class AuthController extends Controller
         }
 
         return $trimmedUrl;
+    }
+
+    private function markUserOnline(User $user): void
+    {
+        $user->forceFill([
+            'is_online' => true,
+            'last_seen_at' => now(),
+        ])->save();
+    }
+
+    private function markUserOffline(User $user): void
+    {
+        $user->forceFill([
+            'is_online' => false,
+            'last_seen_at' => now(),
+        ])->save();
+    }
+
+    private function isUserOnline(User $user): bool
+    {
+        return (bool) $user->is_online &&
+            $user->last_seen_at !== null &&
+            $user->last_seen_at->greaterThan(now()->subMinutes(2));
     }
 }
 

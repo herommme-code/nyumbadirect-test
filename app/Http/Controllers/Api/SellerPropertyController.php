@@ -305,7 +305,9 @@ class SellerPropertyController extends Controller
             'whatsapp_number' => $user->whatsapp_number,
             'location' => $user->location,
             'bio' => $user->bio,
-            'profile_photo_url' => $user->profile_photo_url,
+            'profile_photo_url' => $this->normalizedProfilePhotoUrl($user->profile_photo_url),
+            'is_online' => $this->isUserOnline($user),
+            'last_seen_at' => optional($user->last_seen_at)->toIso8601String(),
         ];
     }
 
@@ -345,7 +347,29 @@ class SellerPropertyController extends Controller
 
     private function publicStorageUrl(Request $request, string $path): string
     {
-        return rtrim($request->getSchemeAndHttpHost(), '/').Storage::url($path);
+        return rtrim(config('app.url'), '/').Storage::url($path);
+    }
+
+    private function isUserOnline(User $user): bool
+    {
+        return (bool) $user->is_online &&
+            $user->last_seen_at !== null &&
+            $user->last_seen_at->greaterThan(now()->subMinutes(2));
+    }
+
+    private function normalizedProfilePhotoUrl(?string $url): ?string
+    {
+        if ($url === null || trim($url) === '') {
+            return null;
+        }
+
+        $trimmedUrl = trim($url);
+        if (preg_match('/^https?:\/\/(127\.0\.0\.1|localhost|10\.0\.2\.2)(:\d+)?(\/.*)?$/i', $trimmedUrl, $matches)) {
+            $path = $matches[3] ?? '';
+            return rtrim(config('app.url'), '/').$path;
+        }
+
+        return $trimmedUrl;
     }
 }
 
