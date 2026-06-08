@@ -377,6 +377,10 @@ class SellerPropertyController extends Controller
         $parsedUrl = parse_url($trimmedUrl);
         $appHost = parse_url($appUrl, PHP_URL_HOST);
         $path = $parsedUrl['path'] ?? '';
+        if (str_contains($path, '/storage/profile-photos/') || str_contains($path, '/api/storage/profile-photos/')) {
+            return $appUrl.$this->normalizedProfilePhotoPath($path);
+        }
+
         if (($parsedUrl['host'] ?? null) === $appHost) {
             return $appUrl.$this->normalizedProfilePhotoPath($path);
         }
