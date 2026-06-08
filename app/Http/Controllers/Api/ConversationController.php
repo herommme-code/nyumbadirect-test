@@ -304,7 +304,7 @@ class ConversationController extends Controller
         $parsedUrl = parse_url($trimmedUrl);
         $appHost = parse_url($appUrl, PHP_URL_HOST);
         $path = $parsedUrl['path'] ?? '';
-        if (str_contains($path, '/storage/profile-photos/') || str_contains($path, '/api/storage/profile-photos/')) {
+        if (str_contains($path, '/api/profile-photos/') || str_contains($path, '/storage/profile-photos/') || str_contains($path, '/api/storage/profile-photos/')) {
             return $appUrl.$this->normalizedProfilePhotoPath($path);
         }
 
@@ -322,6 +322,10 @@ class ConversationController extends Controller
             : $path;
 
         if (str_starts_with($normalizedPath, '/storage/profile-photos/')) {
+            return '/api/profile-photos/'.basename($normalizedPath);
+        }
+
+        if (str_starts_with($normalizedPath, '/api/profile-photos/')) {
             return '/api/profile-photos/'.basename($normalizedPath);
         }
 
