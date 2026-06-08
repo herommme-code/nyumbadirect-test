@@ -111,14 +111,22 @@ class AuthController extends Controller
             $user->profile_photo_url
         );
 
-        $user->update([
+        $updates = [
             'name' => $validated['name'],
             'phone' => $validated['phone'] ?? null,
             'whatsapp_number' => $validated['whatsapp_number'] ?? null,
             'location' => $validated['location'] ?? null,
             'bio' => $validated['bio'] ?? null,
             'profile_photo_url' => $profilePhotoUrl,
-        ]);
+        ];
+
+        if ($profilePhotoUrl === null) {
+            $updates['profile_photo_filename'] = null;
+            $updates['profile_photo_mime'] = null;
+            $updates['profile_photo_data'] = null;
+        }
+
+        $user->update($updates);
 
         return response()->json([
             'message' => 'Profile updated successfully.',
@@ -141,9 +149,15 @@ class AuthController extends Controller
             ], 404);
         }
 
-        $path = $request->file('photo')->store('profile-photos', 'public');
+        $photo = $request->file('photo');
+        $path = $photo->store('profile-photos', 'public');
+        $filename = basename($path);
+
         $user->update([
-            'profile_photo_url' => $this->publicStorageUrl($request, $path),
+            'profile_photo_url' => $this->profilePhotoApiUrl($filename),
+            'profile_photo_filename' => $filename,
+            'profile_photo_mime' => $photo->getMimeType() ?: 'image/jpeg',
+            'profile_photo_data' => base64_encode(file_get_contents($photo->getRealPath())),
         ]);
 
         return response()->json([
@@ -203,11 +217,28 @@ class AuthController extends Controller
         $safeFilename = basename($filename);
         $path = 'profile-photos/'.$safeFilename;
 
-        if ($safeFilename === '' || ! Storage::disk('public')->exists($path)) {
+        if ($safeFilename === '') {
             abort(404);
         }
 
-        return response()->file(Storage::disk('public')->path($path), [
+        if (Storage::disk('public')->exists($path)) {
+            return response()->file(Storage::disk('public')->path($path), [
+                'Cache-Control' => 'public, max-age=604800',
+            ]);
+        }
+
+        $user = User::where('profile_photo_filename', $safeFilename)->first();
+        if (! $user || empty($user->profile_photo_data)) {
+            abort(404);
+        }
+
+        $photoData = base64_decode($user->profile_photo_data, true);
+        if ($photoData === false) {
+            abort(404);
+        }
+
+        return response($photoData, 200, [
+            'Content-Type' => $user->profile_photo_mime ?: 'image/jpeg',
             'Cache-Control' => 'public, max-age=604800',
         ]);
     }

@@ -28,6 +28,9 @@ class User extends Authenticatable
         'location',
         'bio',
         'profile_photo_url',
+        'profile_photo_filename',
+        'profile_photo_mime',
+        'profile_photo_data',
         'is_online',
         'last_seen_at',
     ];
@@ -41,6 +44,7 @@ class User extends Authenticatable
      */
     protected $hidden = [
         'password',
+        'profile_photo_data',
     ];
 
     /**
