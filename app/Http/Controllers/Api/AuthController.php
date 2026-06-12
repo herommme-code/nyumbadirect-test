@@ -9,6 +9,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -101,17 +103,29 @@ class AuthController extends Controller
         }
 
         try {
-            $user = User::where('email', $email)->first();
             $googleId = $googleUser['sub'] ?? null;
+            $hasGoogleAuthColumns = $this->hasGoogleAuthColumns();
+            $user = User::query()
+                ->when(
+                    $hasGoogleAuthColumns && $googleId,
+                    fn ($query) => $query->orWhere('google_id', $googleId)
+                )
+                ->orWhere('email', $email)
+                ->first();
 
             if ($user) {
-                $user->forceFill([
-                    'google_id' => $googleId,
-                    'auth_provider' => 'google',
+                $updates = [
                     'email_verified_at' => $user->email_verified_at ?? now(),
-                ])->save();
+                ];
+
+                if ($hasGoogleAuthColumns) {
+                    $updates['google_id'] = $googleId;
+                    $updates['auth_provider'] = 'google';
+                }
+
+                $user->forceFill($updates)->save();
             } else {
-                $user = User::create([
+                $attributes = [
                     'name' => $googleUser['name'] ?? 'Nyumbadirect Guest',
                     'email' => $email,
                     'email_verified_at' => now(),
@@ -119,9 +133,14 @@ class AuthController extends Controller
                     'location' => 'Dar es Salaam',
                     'bio' => 'Looking for verified rental homes.',
                     'profile_photo_url' => $googleUser['picture'] ?? null,
-                    'google_id' => $googleId,
-                    'auth_provider' => 'google',
-                ]);
+                ];
+
+                if ($hasGoogleAuthColumns) {
+                    $attributes['google_id'] = $googleId;
+                    $attributes['auth_provider'] = 'google';
+                }
+
+                $user = User::create($attributes);
             }
 
             $this->markUserOnline($user);
@@ -130,7 +149,12 @@ class AuthController extends Controller
                 'message' => 'Logged in successfully.',
                 'user' => $this->userPayload($user->refresh()),
             ]);
-        } catch (QueryException) {
+        } catch (QueryException $exception) {
+            Log::error('Google Sign-In database error.', [
+                'email' => $email,
+                'sql_error' => $exception->getMessage(),
+            ]);
+
             return response()->json([
                 'message' => 'We could not log you in with Google right now. Please try again.',
             ], 500);
@@ -377,6 +401,20 @@ class AuthController extends Controller
         }
 
         return $payload;
+    }
+
+    private function hasGoogleAuthColumns(): bool
+    {
+        try {
+            return Schema::hasColumn('users', 'google_id') &&
+                Schema::hasColumn('users', 'auth_provider');
+        } catch (\Throwable $exception) {
+            Log::error('Could not inspect Google auth columns.', [
+                'error' => $exception->getMessage(),
+            ]);
+
+            return false;
+        }
     }
 
     public function userPayload(User $user): array
