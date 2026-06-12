@@ -8,7 +8,9 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -63,6 +65,76 @@ class AuthController extends Controller
             'message' => 'Logged in successfully.',
             'user' => $this->userPayload($user),
         ]);
+    }
+
+    public function googleLogin(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'id_token' => ['required', 'string'],
+        ]);
+
+        $googleClientId = config('services.google.client_id');
+        if (! is_string($googleClientId) || trim($googleClientId) === '') {
+            return response()->json([
+                'message' => 'Google Sign-In is not configured.',
+            ], 500);
+        }
+
+        $googleUser = $this->verifyGoogleIdToken($validated['id_token'], $googleClientId);
+        if ($googleUser === null) {
+            return response()->json([
+                'message' => 'Invalid Google sign-in token.',
+            ], 401);
+        }
+
+        $email = strtolower($googleUser['email'] ?? '');
+        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return response()->json([
+                'message' => 'Google account did not include a valid email address.',
+            ], 422);
+        }
+
+        if (! filter_var($googleUser['email_verified'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+            return response()->json([
+                'message' => 'Google account email is not verified.',
+            ], 422);
+        }
+
+        try {
+            $user = User::where('email', $email)->first();
+            $googleId = $googleUser['sub'] ?? null;
+
+            if ($user) {
+                $user->forceFill([
+                    'google_id' => $googleId,
+                    'auth_provider' => 'google',
+                    'email_verified_at' => $user->email_verified_at ?? now(),
+                ])->save();
+            } else {
+                $user = User::create([
+                    'name' => $googleUser['name'] ?? 'Nyumbadirect Guest',
+                    'email' => $email,
+                    'email_verified_at' => now(),
+                    'password' => Hash::make(Str::random(40)),
+                    'location' => 'Dar es Salaam',
+                    'bio' => 'Looking for verified rental homes.',
+                    'profile_photo_url' => $googleUser['picture'] ?? null,
+                    'google_id' => $googleId,
+                    'auth_provider' => 'google',
+                ]);
+            }
+
+            $this->markUserOnline($user);
+
+            return response()->json([
+                'message' => 'Logged in successfully.',
+                'user' => $this->userPayload($user->refresh()),
+            ]);
+        } catch (QueryException) {
+            return response()->json([
+                'message' => 'We could not log you in with Google right now. Please try again.',
+            ], 500);
+        }
     }
 
     public function profile(Request $request): JsonResponse
@@ -273,6 +345,38 @@ class AuthController extends Controller
             'Content-Type' => $user->profile_photo_mime ?: 'image/jpeg',
             'Cache-Control' => 'public, max-age=604800',
         ]);
+    }
+
+    private function verifyGoogleIdToken(string $idToken, string $googleClientId): ?array
+    {
+        try {
+            $response = Http::timeout(8)
+                ->acceptJson()
+                ->get('https://oauth2.googleapis.com/tokeninfo', [
+                    'id_token' => $idToken,
+                ]);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (! $response->successful()) {
+            return null;
+        }
+
+        $payload = $response->json();
+        if (! is_array($payload)) {
+            return null;
+        }
+
+        if (($payload['aud'] ?? null) !== $googleClientId) {
+            return null;
+        }
+
+        if (! isset($payload['sub'])) {
+            return null;
+        }
+
+        return $payload;
     }
 
     public function userPayload(User $user): array

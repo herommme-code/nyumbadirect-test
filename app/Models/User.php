@@ -22,7 +22,10 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'email_verified_at',
         'password',
+        'google_id',
+        'auth_provider',
         'phone',
         'whatsapp_number',
         'location',
@@ -56,6 +59,7 @@ class User extends Authenticatable
     {
         return [
             'password' => 'hashed',
+            'email_verified_at' => 'datetime',
             'is_online' => 'boolean',
             'last_seen_at' => 'datetime',
         ];

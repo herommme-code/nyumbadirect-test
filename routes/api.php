@@ -25,6 +25,7 @@ Route::get('/config/maps', function () {
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/google', [AuthController::class, 'googleLogin']);
     Route::post('/profile', [AuthController::class, 'profile']);
     Route::put('/profile', [AuthController::class, 'updateProfile']);
     Route::post('/profile/photo', [AuthController::class, 'uploadProfilePhoto']);
