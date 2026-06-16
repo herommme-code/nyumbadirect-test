@@ -166,10 +166,7 @@ class SellerPropertyController extends Controller
             $imageUrls[] = $this->publicStorageUrl($request, $path);
         }
 
-        $existingNetworkUrls = collect($property->local_image_paths ?? [])
-            ->filter(fn ($path) => is_string($path) && preg_match('/^https?:\/\//i', $path))
-            ->values()
-            ->all();
+        $existingNetworkUrls = $this->normalizedPropertyImageUrls($property->local_image_paths ?? []);
         $nextImageUrls = array_values(array_unique([...$existingNetworkUrls, ...$imageUrls]));
 
         $property->update([
@@ -264,8 +261,8 @@ class SellerPropertyController extends Controller
             'amenities' => $property['amenities'] ?? [],
             'is_verified' => $property['isVerified'] ?? false,
             'is_featured' => $property['isFeatured'] ?? false,
-            'image_url' => $property['imageUrl'] ?? '',
-            'local_image_paths' => $property['localImagePaths'] ?? [],
+            'image_url' => $this->normalizedPropertyImageUrl($property['imageUrl'] ?? ''),
+            'local_image_paths' => $this->normalizedPropertyImageUrls($property['localImagePaths'] ?? []),
             'local_video_path' => $property['localVideoPath'] ?? null,
         ];
     }
@@ -369,6 +366,10 @@ class SellerPropertyController extends Controller
         }
 
         $trimmedUrl = trim($url);
+        if ($this->isPrivateDeviceImagePath($trimmedUrl)) {
+            return '';
+        }
+
         $appUrl = $this->publicAppUrl();
         if (str_starts_with($trimmedUrl, '/')) {
             return $appUrl.$this->normalizedPropertyImagePath($trimmedUrl);
@@ -379,15 +380,35 @@ class SellerPropertyController extends Controller
         $host = $parsedUrl['host'] ?? null;
         $appHost = parse_url($appUrl, PHP_URL_HOST);
 
+        if ($this->isPrivateDeviceImagePath($path)) {
+            return '';
+        }
+
         if (str_contains($path, '/storage/seller-properties/') || str_contains($path, '/api/storage/seller-properties/')) {
             return $appUrl.$this->normalizedPropertyImagePath($path);
         }
 
-        if ($host === $appHost || $host === '127.0.0.1' || $host === 'localhost' || $host === '10.0.2.2' || filter_var($host, FILTER_VALIDATE_IP)) {
+        if (($host === $appHost || $host === '127.0.0.1' || $host === 'localhost' || $host === '10.0.2.2' || filter_var($host, FILTER_VALIDATE_IP)) && str_contains($path, '/storage/')) {
             return $appUrl.$this->normalizedPropertyImagePath($path);
         }
 
         return $trimmedUrl;
+    }
+
+    private function isPrivateDeviceImagePath(string $path): bool
+    {
+        $normalizedPath = trim($path);
+        if ($normalizedPath === '') {
+            return false;
+        }
+
+        $parsedUrl = parse_url($normalizedPath);
+        $scheme = strtolower($parsedUrl['scheme'] ?? '');
+        $urlPath = $parsedUrl['path'] ?? $normalizedPath;
+
+        return in_array($scheme, ['file', 'content'], true) ||
+            str_starts_with($urlPath, '/data/') ||
+            str_contains($urlPath, '/app_flutter/nyumba_media/');
     }
 
     private function normalizedPropertyImagePath(string $path): string
