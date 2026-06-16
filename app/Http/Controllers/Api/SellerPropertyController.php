@@ -289,8 +289,10 @@ class SellerPropertyController extends Controller
             'amenities' => $property->amenities ?? [],
             'isVerified' => $property->is_verified,
             'isFeatured' => $property->is_featured,
-            'imageUrl' => $property->image_url ?? '',
-            'localImagePaths' => $property->local_image_paths ?? [],
+            'imageUrl' => $this->normalizedPropertyImageUrl($property->image_url),
+            'localImagePaths' => $this->normalizedPropertyImageUrls($property->local_image_paths ?? []),
+            'image_urls' => $this->normalizedPropertyImageUrls($property->local_image_paths ?? []),
+            'images' => $this->normalizedPropertyImageUrls($property->local_image_paths ?? []),
             'localVideoPath' => $property->local_video_path,
             'seller' => $property->user ? $this->userPayload($property->user) : null,
         ];
@@ -347,7 +349,62 @@ class SellerPropertyController extends Controller
 
     private function publicStorageUrl(Request $request, string $path): string
     {
-        return rtrim(config('app.url'), '/').Storage::url($path);
+        return $this->publicAppUrl().Storage::url($path);
+    }
+
+    private function normalizedPropertyImageUrls(array $paths): array
+    {
+        return collect($paths)
+            ->filter(fn ($path) => is_string($path) && trim($path) !== '')
+            ->map(fn (string $path) => $this->normalizedPropertyImageUrl($path))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function normalizedPropertyImageUrl(?string $url): string
+    {
+        if ($url === null || trim($url) === '') {
+            return '';
+        }
+
+        $trimmedUrl = trim($url);
+        $appUrl = $this->publicAppUrl();
+        if (str_starts_with($trimmedUrl, '/')) {
+            return $appUrl.$this->normalizedPropertyImagePath($trimmedUrl);
+        }
+
+        $parsedUrl = parse_url($trimmedUrl);
+        $path = $parsedUrl['path'] ?? '';
+        $host = $parsedUrl['host'] ?? null;
+        $appHost = parse_url($appUrl, PHP_URL_HOST);
+
+        if (str_contains($path, '/storage/seller-properties/') || str_contains($path, '/api/storage/seller-properties/')) {
+            return $appUrl.$this->normalizedPropertyImagePath($path);
+        }
+
+        if ($host === $appHost || $host === '127.0.0.1' || $host === 'localhost' || $host === '10.0.2.2' || filter_var($host, FILTER_VALIDATE_IP)) {
+            return $appUrl.$this->normalizedPropertyImagePath($path);
+        }
+
+        return $trimmedUrl;
+    }
+
+    private function normalizedPropertyImagePath(string $path): string
+    {
+        $normalizedPath = str_starts_with($path, '/api/storage/')
+            ? substr($path, 4)
+            : $path;
+
+        if (str_starts_with($normalizedPath, '/storage/seller-properties/')) {
+            return $normalizedPath;
+        }
+
+        if (str_starts_with($normalizedPath, 'seller-properties/')) {
+            return '/storage/'.$normalizedPath;
+        }
+
+        return $normalizedPath;
     }
 
     private function isUserOnline(User $user): bool
