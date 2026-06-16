@@ -144,7 +144,7 @@ class SellerPropertyController extends Controller
         $validated = $request->validate([
             'email' => ['required', 'email', 'max:255'],
             'images' => ['required', 'array', 'min:1'],
-            'images.*' => ['required', 'image', 'max:8192'],
+            'images.*' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:20480'],
         ]);
 
         $user = $this->userFor($validated['email']);
