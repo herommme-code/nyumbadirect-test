@@ -346,7 +346,7 @@ class SellerPropertyController extends Controller
 
     private function publicStorageUrl(Request $request, string $path): string
     {
-        return $this->publicAppUrl().Storage::url($path);
+        return $this->publicAppUrl().'/storage/'.ltrim($path, '/');
     }
 
     private function normalizedPropertyImageUrls(array $paths): array
@@ -366,7 +366,7 @@ class SellerPropertyController extends Controller
         }
 
         $trimmedUrl = trim($url);
-        if ($this->isPrivateDeviceImagePath($trimmedUrl)) {
+        if ($this->isPrivateDeviceImagePath($trimmedUrl) || $this->isDefaultPropertyImageUrl($trimmedUrl)) {
             return '';
         }
 
@@ -380,7 +380,7 @@ class SellerPropertyController extends Controller
         $host = $parsedUrl['host'] ?? null;
         $appHost = parse_url($appUrl, PHP_URL_HOST);
 
-        if ($this->isPrivateDeviceImagePath($path)) {
+        if ($this->isPrivateDeviceImagePath($path) || $this->isDefaultPropertyImageUrl($path)) {
             return '';
         }
 
@@ -393,6 +393,11 @@ class SellerPropertyController extends Controller
         }
 
         return $trimmedUrl;
+    }
+
+    private function isDefaultPropertyImageUrl(string $url): bool
+    {
+        return str_contains($url, 'images.pexels.com/photos/7031406/');
     }
 
     private function isPrivateDeviceImagePath(string $path): bool
