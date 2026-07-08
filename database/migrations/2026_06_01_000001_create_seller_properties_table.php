@@ -15,9 +15,12 @@ return new class extends Migration
             $table->string('title');
             $table->text('description');
             $table->unsignedInteger('price');
+            $table->string('listing_purpose')->default('Rent');
             $table->string('type');
             $table->unsignedInteger('bedrooms');
             $table->unsignedInteger('bathrooms');
+            $table->string('plot_size')->default('');
+            $table->string('plot_size_unit')->default('');
             $table->string('region');
             $table->string('district');
             $table->string('ward');

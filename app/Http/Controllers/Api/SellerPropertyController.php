@@ -41,9 +41,16 @@ class SellerPropertyController extends Controller
             'properties.*.title' => ['required', 'string', 'max:255'],
             'properties.*.description' => ['nullable', 'string', 'max:5000'],
             'properties.*.price' => ['required', 'integer', 'min:0'],
+            'properties.*.listing_purpose' => ['nullable', 'string', 'max:40'],
+            'properties.*.listingPurpose' => ['nullable', 'string', 'max:40'],
+            'properties.*.purpose' => ['nullable', 'string', 'max:40'],
             'properties.*.type' => ['required', 'string', 'max:80'],
             'properties.*.bedrooms' => ['required', 'integer', 'min:0'],
             'properties.*.bathrooms' => ['required', 'integer', 'min:0'],
+            'properties.*.plot_size' => ['nullable', 'string', 'max:80'],
+            'properties.*.plotSize' => ['nullable', 'string', 'max:80'],
+            'properties.*.plot_size_unit' => ['nullable', 'string', 'max:40'],
+            'properties.*.plotSizeUnit' => ['nullable', 'string', 'max:40'],
             'properties.*.region' => ['nullable', 'string', 'max:255'],
             'properties.*.district' => ['nullable', 'string', 'max:255'],
             'properties.*.ward' => ['nullable', 'string', 'max:255'],
@@ -249,9 +256,12 @@ class SellerPropertyController extends Controller
             'title' => $property['title'],
             'description' => $property['description'] ?? '',
             'price' => $property['price'],
+            'listing_purpose' => $this->listingPurposeFromProperty($property),
             'type' => $property['type'],
             'bedrooms' => $property['bedrooms'],
             'bathrooms' => $property['bathrooms'],
+            'plot_size' => $property['plot_size'] ?? $property['plotSize'] ?? '',
+            'plot_size_unit' => $property['plot_size_unit'] ?? $property['plotSizeUnit'] ?? '',
             'region' => $property['region'] ?? '',
             'district' => $property['district'] ?? '',
             'ward' => $property['ward'] ?? '',
@@ -267,6 +277,21 @@ class SellerPropertyController extends Controller
         ];
     }
 
+    private function listingPurposeFromProperty(array $property): string
+    {
+        $rawPurpose = $property['listing_purpose']
+            ?? $property['listingPurpose']
+            ?? $property['purpose']
+            ?? null;
+        $purpose = strtolower(trim((string) $rawPurpose));
+
+        if (in_array($purpose, ['sale', 'sell', 'for sale'], true) || strtolower((string) ($property['type'] ?? '')) === 'plot') {
+            return 'Sale';
+        }
+
+        return 'Rent';
+    }
+
     private function propertyPayload(SellerProperty $property): array
     {
         return [
@@ -274,9 +299,16 @@ class SellerPropertyController extends Controller
             'title' => $property->title,
             'description' => $property->description,
             'price' => $property->price,
+            'listing_purpose' => $property->listing_purpose ?? 'Rent',
+            'listingPurpose' => $property->listing_purpose ?? 'Rent',
+            'purpose' => $property->listing_purpose ?? 'Rent',
             'type' => $property->type,
             'bedrooms' => $property->bedrooms,
             'bathrooms' => $property->bathrooms,
+            'plot_size' => $property->plot_size ?? '',
+            'plotSize' => $property->plot_size ?? '',
+            'plot_size_unit' => $property->plot_size_unit ?? '',
+            'plotSizeUnit' => $property->plot_size_unit ?? '',
             'region' => $property->region,
             'district' => $property->district,
             'ward' => $property->ward,
