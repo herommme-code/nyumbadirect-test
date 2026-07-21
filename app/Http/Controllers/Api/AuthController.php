@@ -123,6 +123,10 @@ class AuthController extends Controller
                     $updates['auth_provider'] = 'google';
                 }
 
+                if (! empty($googleUser['picture'])) {
+                    $updates['profile_photo_url'] = $this->normalizedProfilePhotoUrl($googleUser['picture']);
+                }
+
                 $user->forceFill($updates)->save();
             } else {
                 $attributes = [
@@ -132,7 +136,9 @@ class AuthController extends Controller
                     'password' => Hash::make(Str::random(40)),
                     'location' => 'Dar es Salaam',
                     'bio' => 'Looking for verified rental homes.',
-                    'profile_photo_url' => $googleUser['picture'] ?? null,
+                    'profile_photo_url' => ! empty($googleUser['picture'])
+                        ? $this->normalizedProfilePhotoUrl($googleUser['picture'])
+                        : null,
                 ];
 
                 if ($hasGoogleAuthColumns) {
