@@ -294,6 +294,8 @@ class SellerPropertyController extends Controller
 
     private function propertyPayload(SellerProperty $property): array
     {
+        $postedAt = optional($property->created_at)->toIso8601String();
+
         return [
             'id' => $property->listing_id,
             'title' => $property->title,
@@ -323,6 +325,12 @@ class SellerPropertyController extends Controller
             'image_urls' => $this->normalizedPropertyImageUrls($property->local_image_paths ?? []),
             'images' => $this->normalizedPropertyImageUrls($property->local_image_paths ?? []),
             'localVideoPath' => $property->local_video_path,
+            'posted_at' => $postedAt,
+            'postedAt' => $postedAt,
+            'created_at' => $postedAt,
+            'createdAt' => $postedAt,
+            'published_at' => $postedAt,
+            'publishedAt' => $postedAt,
             'seller' => $property->user ? $this->userPayload($property->user) : null,
         ];
     }
