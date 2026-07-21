@@ -31,6 +31,7 @@ class SellerProperty extends Model
         'image_url',
         'local_image_paths',
         'local_video_path',
+        'view_count',
     ];
 
     protected function casts(): array
@@ -48,6 +49,7 @@ class SellerProperty extends Model
             'is_verified' => 'boolean',
             'is_featured' => 'boolean',
             'local_image_paths' => 'array',
+            'view_count' => 'integer',
         ];
     }
 

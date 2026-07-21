@@ -54,6 +54,7 @@ Route::prefix('seller/properties')->group(function () {
 
 Route::get('/properties', [SellerPropertyController::class, 'published']);
 Route::get('/properties/{listingId}', [SellerPropertyController::class, 'show']);
+Route::post('/properties/{listingId}/view', [SellerPropertyController::class, 'recordView']);
 
 Route::prefix('favorites')->group(function () {
     Route::get('/', [FavoritePropertyController::class, 'index']);

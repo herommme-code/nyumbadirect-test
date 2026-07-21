@@ -245,6 +245,26 @@ class SellerPropertyController extends Controller
         return response()->json(['property' => $this->propertyPayload($property)]);
     }
 
+    public function recordView(string $listingId): JsonResponse
+    {
+        $property = SellerProperty::query()
+            ->with('user')
+            ->where('listing_id', $listingId)
+            ->where('is_verified', true)
+            ->first();
+
+        if (! $property) {
+            return response()->json(['message' => 'Property not found.'], 404);
+        }
+
+        $property->increment('view_count');
+
+        return response()->json([
+            'message' => 'Property view recorded.',
+            'property' => $this->propertyPayload($property->refresh()),
+        ]);
+    }
+
     private function userFor(string $email): ?User
     {
         return User::where('email', strtolower($email))->first();
@@ -325,6 +345,9 @@ class SellerPropertyController extends Controller
             'image_urls' => $this->normalizedPropertyImageUrls($property->local_image_paths ?? []),
             'images' => $this->normalizedPropertyImageUrls($property->local_image_paths ?? []),
             'localVideoPath' => $property->local_video_path,
+            'view_count' => $property->view_count ?? 0,
+            'viewCount' => $property->view_count ?? 0,
+            'views' => $property->view_count ?? 0,
             'posted_at' => $postedAt,
             'postedAt' => $postedAt,
             'created_at' => $postedAt,
