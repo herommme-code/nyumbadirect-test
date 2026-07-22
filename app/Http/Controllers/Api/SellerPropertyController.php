@@ -495,7 +495,10 @@ class SellerPropertyController extends Controller
         return collect($paths)
             ->filter(fn ($path) => is_string($path) && trim($path) !== '')
             ->map(fn (string $path) => $this->normalizedPropertyImageUrl($path))
-            ->filter()
+            // Browser previews (blob:) and device file paths must never be
+            // persisted. Only real hosted image URLs belong in the shared DB.
+            ->filter(fn (string $path) => $path !== '')
+            ->unique()
             ->values()
             ->all();
     }
@@ -552,7 +555,7 @@ class SellerPropertyController extends Controller
         $scheme = strtolower($parsedUrl['scheme'] ?? '');
         $urlPath = $parsedUrl['path'] ?? $normalizedPath;
 
-        return in_array($scheme, ['file', 'content'], true) ||
+        return in_array($scheme, ['file', 'content', 'blob', 'data'], true) ||
             str_starts_with($urlPath, '/data/') ||
             str_contains($urlPath, '/app_flutter/nyumba_media/');
     }
