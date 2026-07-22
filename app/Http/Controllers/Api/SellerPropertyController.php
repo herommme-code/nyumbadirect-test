@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\PropertyLocation;
+use App\Models\SyncEvent;
 use App\Models\SellerProperty;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -95,6 +96,22 @@ class SellerPropertyController extends Controller
             }
         }
 
+        SyncEvent::record(
+            'properties.synced',
+            [
+                'email' => $user->email,
+                'properties' => $user->sellerProperties()
+                    ->latest()
+                    ->get()
+                    ->map(fn (SellerProperty $property) => $this->propertyPayload($property))
+                    ->values()
+                    ->all(),
+            ],
+            null,
+            'seller_properties',
+            (string) $user->id
+        );
+
         $properties = $user->sellerProperties()
             ->latest()
             ->get()
@@ -140,6 +157,17 @@ class SellerPropertyController extends Controller
         ]);
         $this->storePropertyLocation($user, $listingId, $validated);
 
+        SyncEvent::record(
+            'property.updated',
+            [
+                'email' => $user->email,
+                'property' => $this->propertyPayload($property->refresh()),
+            ],
+            null,
+            'seller_property',
+            $listingId
+        );
+
         return response()->json([
             'message' => 'Property location saved.',
             'property' => $this->propertyPayload($property->refresh()),
@@ -181,6 +209,17 @@ class SellerPropertyController extends Controller
             'local_image_paths' => $nextImageUrls,
         ]);
 
+        SyncEvent::record(
+            'property.images.updated',
+            [
+                'email' => $user->email,
+                'property' => $this->propertyPayload($property->refresh()),
+            ],
+            null,
+            'seller_property',
+            $listingId
+        );
+
         return response()->json([
             'message' => 'Property images uploaded successfully.',
             'property' => $this->propertyPayload($property->refresh()),
@@ -213,6 +252,17 @@ class SellerPropertyController extends Controller
             ->delete();
 
         Storage::disk('public')->deleteDirectory('seller-properties/'.$listingId);
+
+        SyncEvent::record(
+            'property.deleted',
+            [
+                'email' => $user->email,
+                'listing_id' => $listingId,
+            ],
+            null,
+            'seller_property',
+            $listingId
+        );
 
         return response()->json(['message' => 'Property deleted.']);
     }
@@ -258,6 +308,17 @@ class SellerPropertyController extends Controller
         }
 
         $property->increment('view_count');
+
+        SyncEvent::record(
+            'property.viewed',
+            [
+                'listing_id' => $listingId,
+                'views' => ($property->view_count ?? 0) + 1,
+            ],
+            $property->user?->email,
+            'seller_property',
+            $listingId
+        );
 
         return response()->json([
             'message' => 'Property view recorded.',

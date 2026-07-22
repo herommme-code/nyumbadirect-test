@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\SyncEvent;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -32,6 +33,14 @@ class AuthController extends Controller
                 'location' => 'Dar es Salaam',
                 'bio' => 'Looking for verified rental homes.',
             ]);
+
+            SyncEvent::record(
+                'profile.updated',
+                ['user' => $this->userPayload($user)],
+                $user->email,
+                'user',
+                (string) $user->id
+            );
 
             return response()->json([
                 'message' => 'Account created successfully.',
@@ -151,6 +160,14 @@ class AuthController extends Controller
 
             $this->markUserOnline($user);
 
+            SyncEvent::record(
+                'profile.synced',
+                ['user' => $this->userPayload($user)],
+                $user->email,
+                'user',
+                (string) $user->id
+            );
+
             return response()->json([
                 'message' => 'Logged in successfully.',
                 'user' => $this->userPayload($user->refresh()),
@@ -181,7 +198,15 @@ class AuthController extends Controller
             ], 404);
         }
 
-        $this->markUserOnline($user);
+            $this->markUserOnline($user);
+
+            SyncEvent::record(
+                'profile.synced',
+                ['user' => $this->userPayload($user->refresh())],
+                $user->email,
+                'user',
+                (string) $user->id
+            );
 
         return response()->json([
             'user' => $this->userPayload($user),
@@ -231,6 +256,14 @@ class AuthController extends Controller
 
         $user->update($updates);
 
+        SyncEvent::record(
+            'profile.updated',
+            ['user' => $this->userPayload($user->refresh())],
+            $user->email,
+            'user',
+            (string) $user->id
+        );
+
         return response()->json([
             'message' => 'Profile updated successfully.',
             'user' => $this->userPayload($user),
@@ -264,6 +297,14 @@ class AuthController extends Controller
             'profile_photo_data' => base64_encode(file_get_contents($photo->getRealPath())),
         ]);
 
+        SyncEvent::record(
+            'profile.photo.updated',
+            ['user' => $this->userPayload($user->refresh())],
+            $user->email,
+            'user',
+            (string) $user->id
+        );
+
         return response()->json([
             'message' => 'Profile photo uploaded successfully.',
             'user' => $this->userPayload($user->refresh()),
@@ -291,6 +332,14 @@ class AuthController extends Controller
             'profile_photo_mime' => null,
             'profile_photo_data' => null,
         ]);
+
+        SyncEvent::record(
+            'profile.photo.removed',
+            ['user' => $this->userPayload($user->refresh())],
+            $user->email,
+            'user',
+            (string) $user->id
+        );
 
         return response()->json([
             'message' => 'Profile photo removed successfully.',

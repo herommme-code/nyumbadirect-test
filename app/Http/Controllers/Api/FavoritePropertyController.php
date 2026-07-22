@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\FavoriteProperty;
+use App\Models\SyncEvent;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -57,6 +58,17 @@ class FavoritePropertyController extends Controller
                 'listing_id' => $listingId,
             ]);
         }
+
+        SyncEvent::record(
+            'favorites.synced',
+            [
+                'email' => $user->email,
+                'favorites' => $incomingIds->values()->all(),
+            ],
+            $user->email,
+            'favorites',
+            (string) $user->id
+        );
 
         return response()->json([
             'message' => 'Favorites saved.',

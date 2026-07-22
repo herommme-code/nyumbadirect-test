@@ -4,10 +4,16 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\FavoritePropertyController;
 use App\Http\Controllers\Api\SellerPropertyController;
+use App\Http\Controllers\Api\SyncController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', function () {
     return response()->json(['status' => 'ok']);
+});
+
+Route::prefix('sync')->group(function () {
+    Route::get('/events', [SyncController::class, 'events']);
+    Route::get('/stream', [SyncController::class, 'stream']);
 });
 
 Route::get('/config/maps', function () {
