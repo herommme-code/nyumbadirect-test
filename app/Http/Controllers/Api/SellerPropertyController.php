@@ -13,6 +13,13 @@ use Illuminate\Support\Facades\Storage;
 
 class SellerPropertyController extends Controller
 {
+    private const LEGACY_DEMO_LISTING_IDS = [
+        'masaki-01',
+        'mikocheni-02',
+        'sinza-03',
+        'kigamboni-04',
+    ];
+
     public function index(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -71,7 +78,11 @@ class SellerPropertyController extends Controller
             return response()->json(['message' => 'User not found.'], 404);
         }
 
-        $incomingIds = collect($validated['properties'])
+        $properties = collect($validated['properties'])
+            ->reject(fn (array $property) => in_array($property['id'], self::LEGACY_DEMO_LISTING_IDS, true))
+            ->values();
+
+        $incomingIds = $properties
             ->pluck('id')
             ->filter()
             ->values();
@@ -80,7 +91,7 @@ class SellerPropertyController extends Controller
             ->whereNotIn('listing_id', $incomingIds)
             ->delete();
 
-        foreach ($validated['properties'] as $property) {
+        foreach ($properties as $property) {
             SellerProperty::updateOrCreate(
                 [
                     'user_id' => $user->id,
