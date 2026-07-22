@@ -82,15 +82,6 @@ class SellerPropertyController extends Controller
             ->reject(fn (array $property) => in_array($property['id'], self::LEGACY_DEMO_LISTING_IDS, true))
             ->values();
 
-        $incomingIds = $properties
-            ->pluck('id')
-            ->filter()
-            ->values();
-
-        $user->sellerProperties()
-            ->whereNotIn('listing_id', $incomingIds)
-            ->delete();
-
         foreach ($properties as $property) {
             SellerProperty::updateOrCreate(
                 [
@@ -133,6 +124,21 @@ class SellerPropertyController extends Controller
             'message' => 'Seller properties saved.',
             'properties' => $properties,
         ]);
+    }
+
+    /** Save one property without replacing the owner's other properties. */
+    public function save(Request $request, string $listingId): JsonResponse
+    {
+        $property = $request->input('property');
+        if (! is_array($property)) {
+            return response()->json(['message' => 'A property payload is required.'], 422);
+        }
+
+        // The URL determines which property is updated.
+        $property['id'] = $listingId;
+        $request->merge(['properties' => [$property]]);
+
+        return $this->sync($request);
     }
 
     public function updateLocation(Request $request, string $listingId): JsonResponse

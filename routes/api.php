@@ -53,6 +53,7 @@ Route::prefix('conversations')->group(function () {
 Route::prefix('seller/properties')->group(function () {
     Route::get('/', [SellerPropertyController::class, 'index']);
     Route::put('/sync', [SellerPropertyController::class, 'sync']);
+    Route::put('/{listingId}', [SellerPropertyController::class, 'save']);
     Route::put('/{listingId}/location', [SellerPropertyController::class, 'updateLocation']);
     Route::post('/{listingId}/images', [SellerPropertyController::class, 'uploadImages']);
     Route::delete('/{listingId}', [SellerPropertyController::class, 'destroy']);
